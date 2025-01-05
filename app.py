@@ -575,4 +575,6 @@ def dislike():
     conn.close()
     return jsonify({'message': 'Disliked successfully!'})
 
+if __name__ == "__main__":
+    app.run(debug=True)
 
