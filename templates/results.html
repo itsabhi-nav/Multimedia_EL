@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Results</title>
+</head>
+<body>
+    <h1>Search Results for "{{ query }}"</h1>
+    <p>Content Type: {{ content_type }}</p>
+    {% if search_mode %}
+        <p>Search Mode: {{ search_mode }}</p>
+    {% endif %}
+    {% if year %}
+        <p>Year Filter: {{ year }}</p>
+    {% endif %}
+
+    {% if results %}
+        <ul>
+            {% for result in results %}
+                <li>
+                    {% if result.get('image_url') %}
+                        <img src="{{ result.image_url }}" alt="Image" style="max-width: 200px;">
+                    {% endif %}
+                    {% if result.get('title') %}
+                        <strong>{{ result.title }}</strong><br>
+                    {% endif %}
+                    {% if result.get('description') %}
+                        <em>{{ result.description }}</em><br>
+                    {% endif %}
+                    {% if result.get('artist') %}
+                        Artist: {{ result.artist }}<br>
+                    {% endif %}
+                    {% if result.get('album') %}
+                        Album: {{ result.album }}<br>
+                    {% endif %}
+                    {% if result.get('video_url') %}
+                        <a href="{{ result.video_url }}" target="_blank">Watch on YouTube</a>
+                    {% elif result.get('track_url') %}
+                        <a href="{{ result.track_url }}" target="_blank">Listen on Spotify</a>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p>No results found.</p>
+    {% endif %}
+
+    <a href="/">Search Again</a>
+</body>
+</html>
