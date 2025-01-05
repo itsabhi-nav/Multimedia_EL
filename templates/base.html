@@ -1,0 +1,64 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>{% block title %}My Recommendation App{% endblock %}</title>
+  <!-- Add your CSS here (Bootstrap or custom) -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+  />
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+    }
+    nav.navbar {
+      margin-bottom: 30px;
+    }
+    .container {
+      max-width: 700px;
+    }
+    .results-item {
+      border: 1px solid #ccc;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 5px;
+    }
+    .thumbnail {
+      width: 100%;
+      max-width: 300px;
+    }
+    .like-btn, .dislike-btn {
+      margin-right: 10px;
+    }
+    /* Additional custom styling as needed */
+  </style>
+</head>
+<body>
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark px-3">
+    <a class="navbar-brand" href="/">Recommendation App</a>
+    <div class="ms-auto">
+      {% if session.username %}
+        <span class="text-light me-3">Hello, {{ session.username }}!</span>
+        <a class="btn btn-outline-light" href="/logout">Logout</a>
+      {% else %}
+        <a class="btn btn-outline-light me-2" href="/login">Login</a>
+        <a class="btn btn-outline-light" href="/register">Register</a>
+      {% endif %}
+    </div>
+  </nav>
+
+  <div class="container">
+    {% block content %}{% endblock %}
+  </div>
+
+  <!-- JavaScript (for Bootstrap and optional functionality) -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+  ></script>
+  <!-- You can also add a separate custom JS file if desired -->
+  {% block scripts %}{% endblock %}
+</body>
+</html>
