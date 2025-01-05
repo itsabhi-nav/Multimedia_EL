@@ -6,62 +6,232 @@
 {% block content %}
   <h1 class="mb-4">Welcome to the Recommendation App</h1>
 
+  <!-- Only show the search form if needed (like before) -->
+  <div class="mb-5">
+    <form method="POST" action="/recommend" class="mb-5">
+      <div class="mb-3">
+        <label for="query" class="form-label">Search Query</label>
+        <input
+          type="text"
+          class="form-control"
+          id="query"
+          name="query"
+          placeholder="Type a movie, music track, video, or image topic..."
+          required
+        />
+      </div>
+
+      <div class="mb-3">
+        <label for="content_type" class="form-label">Content Type</label>
+        <select class="form-select" id="content_type" name="content_type" required>
+          <option value="Movies">Movies</option>
+          <option value="Music">Music</option>
+          <option value="Videos">Videos</option>
+          <option value="Images">Images</option>
+        </select>
+      </div>
+
+      <div class="mb-3">
+        <label for="search_mode" class="form-label">Search Mode</label>
+        <select class="form-select" id="search_mode" name="search_mode">
+          <option value="standard" selected>Standard (by Title)</option>
+          <option value="person">Person (Movies only)</option>
+          <option value="genre">Genre (Movies only)</option>
+        </select>
+        <small class="text-muted">
+          For movies, you can also select "person" to search by cast or "genre" to search by genre name.
+        </small>
+      </div>
+
+      <div class="mb-3">
+        <label for="year" class="form-label">Year (Optional)</label>
+        <input
+          type="text"
+          class="form-control"
+          id="year"
+          name="year"
+          placeholder="e.g. 1999, 2021"
+        />
+      </div>
+
+      <button type="submit" class="btn btn-primary">Get Recommendations</button>
+    </form>
+  </div>
+
   {% if session.username %}
-    <p class="lead">Get started by entering a search query for Movies, Videos, Music, or Images.</p>
+    <!-- Show the user’s liked items in separate sections -->
+
+    <!-- Liked Movies -->
+    <h3>Liked Movies</h3>
+    <div class="row mb-4">
+      {% if liked_movies and liked_movies|length > 0 %}
+        {% for movie in liked_movies %}
+          <div class="col-md-4">
+            <div class="card mb-3">
+              {% if movie.image_url %}
+              <img
+                src="{{ movie.image_url }}"
+                class="card-img-top"
+                alt="{{ movie.title }}"
+              />
+              {% endif %}
+              <div class="card-body">
+                <h5 class="card-title">{{ movie.title }}</h5>
+                <p class="card-text">
+                  {{ movie.description|truncate(100, True, '...') }}
+                </p>
+                <p class="text-muted">Year: {{ movie.release_year }}</p>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <p>No liked movies yet.</p>
+      {% endif %}
+    </div>
+
+    <!-- Liked Music -->
+    <h3>Liked Music</h3>
+    <div class="row mb-4">
+      {% if liked_music and liked_music|length > 0 %}
+        {% for track in liked_music %}
+          <div class="col-md-4">
+            <div class="card mb-3">
+              {% if track.thumbnail %}
+              <img
+                src="{{ track.thumbnail }}"
+                class="card-img-top"
+                alt="{{ track.title }}"
+              />
+              {% endif %}
+              <div class="card-body">
+                <h5 class="card-title">{{ track.title }}</h5>
+                <p class="card-text">
+                  <strong>Artist:</strong> {{ track.artist }}<br>
+                  <strong>Album:</strong> {{ track.album }}
+                </p>
+                <a href="{{ track.track_url }}" target="_blank" class="btn btn-sm btn-primary">
+                  Listen on Spotify
+                </a>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <p>No liked music yet.</p>
+      {% endif %}
+    </div>
+
+    <!-- Liked Videos -->
+    <h3>Liked Videos</h3>
+    <div class="row mb-4">
+      {% if liked_videos and liked_videos|length > 0 %}
+        {% for vid in liked_videos %}
+          <div class="col-md-4">
+            <div class="card mb-3">
+              {% if vid.thumbnail %}
+              <img
+                src="{{ vid.thumbnail }}"
+                class="card-img-top"
+                alt="{{ vid.title }}"
+              />
+              {% endif %}
+              <div class="card-body">
+                <h5 class="card-title">{{ vid.title }}</h5>
+                <a href="{{ vid.video_url }}" target="_blank" class="btn btn-sm btn-primary">
+                  Watch on YouTube
+                </a>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <p>No liked videos yet.</p>
+      {% endif %}
+    </div>
+
+    <!-- Liked Images -->
+    <h3>Liked Images</h3>
+    <div class="row mb-4">
+      {% if liked_images and liked_images|length > 0 %}
+        {% for img in liked_images %}
+          <div class="col-md-4">
+            <div class="card mb-3">
+              {% if img.image_url %}
+              <img
+                src="{{ img.image_url }}"
+                class="card-img-top"
+                alt="{{ img.title }}"
+              />
+              {% endif %}
+              <div class="card-body">
+                <h5 class="card-title">{{ img.title }}</h5>
+                <p class="card-text">
+                  {{ img.description }}
+                </p>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <p>No liked images yet.</p>
+      {% endif %}
+    </div>
+
+    <!-- Recommended For You -->
+    <h3>Recommended For You</h3>
+    <div class="row mb-4">
+      {% if recommended_for_you and recommended_for_you|length > 0 %}
+        {% for rec in recommended_for_you %}
+          <div class="col-md-4">
+            <div class="card mb-3">
+              <!-- If it's a movie (it has release_year, image_url) -->
+              {% if rec.image_url %}
+              <img
+                src="{{ rec.image_url }}"
+                class="card-img-top"
+                alt="{{ rec.title or 'No title' }}"
+              />
+              {% elif rec.thumbnail %}
+              <img
+                src="{{ rec.thumbnail }}"
+                class="card-img-top"
+                alt="{{ rec.title or 'No title' }}"
+              />
+              {% endif %}
+              <div class="card-body">
+                <h5 class="card-title">{{ rec.title }}</h5>
+                {% if rec.release_year %}
+                <p class="card-text">Year: {{ rec.release_year }}</p>
+                {% endif %}
+                {% if rec.artist %}
+                <p><strong>Artist:</strong> {{ rec.artist }}</p>
+                {% endif %}
+                <p class="card-text">
+                  {{ rec.description or 'No description available' }}
+                </p>
+                <!-- Link: if it's a Spotify track or YouTube video, etc. -->
+                {% if rec.track_url %}
+                  <a href="{{ rec.track_url }}" target="_blank" class="btn btn-sm btn-success">
+                    Listen on Spotify
+                  </a>
+                {% elif rec.video_url %}
+                  <a href="{{ rec.video_url }}" target="_blank" class="btn btn-sm btn-danger">
+                    Watch on YouTube
+                  </a>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      {% else %}
+        <p>No recommendations yet. Like some items to get personalized recommendations!</p>
+      {% endif %}
+    </div>
   {% else %}
     <p class="lead">
       Please <a href="/login">Login</a> or <a href="/register">Register</a> to
-      like or dislike recommendations.
+      like or dislike recommendations and see personalized results.
     </p>
   {% endif %}
-
-  <!-- Recommendation Form -->
-  <form method="POST" action="/recommend" class="mb-5">
-    <div class="mb-3">
-      <label for="query" class="form-label">Search Query</label>
-      <input
-        type="text"
-        class="form-control"
-        id="query"
-        name="query"
-        placeholder="Type something like 'Matrix', 'Pop music', 'Dogs', etc."
-        required
-      />
-    </div>
-
-    <div class="mb-3">
-      <label for="content_type" class="form-label">Content Type</label>
-      <select class="form-select" id="content_type" name="content_type" required>
-        <option value="Movies">Movies</option>
-        <option value="Music">Music</option>
-        <option value="Videos">Videos</option>
-        <option value="Images">Images</option>
-      </select>
-    </div>
-
-    <div class="mb-3">
-      <label for="search_mode" class="form-label">Search Mode</label>
-      <select class="form-select" id="search_mode" name="search_mode">
-        <option value="standard" selected>Standard (by Title)</option>
-        <option value="person">Person (e.g. Director, Actor)</option>
-        <option value="genre">Genre (Movies only)</option>
-      </select>
-      <small class="text-muted">
-        For movies, you can select "person" to search by cast or "genre" to search by genre name.
-      </small>
-    </div>
-
-    <div class="mb-3">
-      <label for="year" class="form-label">Year (Optional)</label>
-      <input
-        type="text"
-        class="form-control"
-        id="year"
-        name="year"
-        placeholder="e.g. 1999, 2021"
-      />
-    </div>
-
-    <button type="submit" class="btn btn-primary">Get Recommendations</button>
-  </form>
 {% endblock %}

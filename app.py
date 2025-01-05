@@ -65,20 +65,10 @@ def init_db():
 
 init_db()
 
-# --- FIX 1: Rename the first (non-cached) get_genre_ids to fetch_genre_ids ---
+# ------------------------------
+# DATA FETCHING & RECOMMENDATION
+# ------------------------------
 
-def fetch_genre_ids():
-    """ Retrieve movie genre IDs from TMDB without caching. """
-    url = "https://api.themoviedb.org/3/genre/movie/list"
-    params = {'api_key': TMDB_API_KEY}
-    return fetch_data(url, params)
-
-@lru_cache(maxsize=1)  # Cache the genre list for improved performance
-def get_genre_ids():
-    """ Retrieve movie genre IDs from TMDB with caching. """
-    return fetch_genre_ids()
-
-# Recommendation functions
 def fetch_data(url, params=None, headers=None):
     """ Fetch data from a given URL with optional parameters and headers. """
     try:
@@ -88,6 +78,17 @@ def fetch_data(url, params=None, headers=None):
     except requests.exceptions.RequestException as e:
         print(f"Error fetching data: {e}")
         return {}
+
+def fetch_genre_ids():
+    """ Retrieve movie genre IDs from TMDB without caching. """
+    url = "https://api.themoviedb.org/3/genre/movie/list"
+    params = {'api_key': TMDB_API_KEY}
+    return fetch_data(url, params)
+
+@lru_cache(maxsize=1)
+def get_genre_ids():
+    """ Retrieve and cache movie genre IDs from TMDB. """
+    return fetch_genre_ids()
 
 def recommend_images(query):
     """ Fetch images from Unsplash based on query. """
@@ -101,8 +102,9 @@ def recommend_images(query):
     results = []
     for img in data.get('results', []):
         results.append({
-            'id': img['id'],  # Ensure we have an ID for like/dislike
+            'id': img['id'],
             'image_url': img['urls']['regular'],
+            'title': img.get('description') or 'No title available',
             'description': img.get('alt_description', 'No description available')
         })
     return results
@@ -126,8 +128,12 @@ def recommend_movies(query, person_search=False, genre_search=False, year=None):
     elif genre_search:
         # Search for a genre and get its ID
         genres = get_genre_ids()
-        genre_id = next((g['id'] for g in genres['genres'] 
-                         if g['name'].lower() == query.lower()), None)
+        if 'genres' in genres:
+            genre_id = next((g['id'] for g in genres['genres'] 
+                             if g['name'].lower() == query.lower()), None)
+        else:
+            genre_id = None
+
         if genre_id:
             params['with_genres'] = genre_id
         else:
@@ -143,13 +149,12 @@ def recommend_movies(query, person_search=False, genre_search=False, year=None):
     if year:
         params['primary_release_year'] = year.strip()
 
-    # Fetch data and process results
     data = fetch_data(url, params)
     results = []
     for movie in data.get('results', []):
         if movie.get('poster_path'):
             results.append({
-                'id': movie['id'],  # Ensure we have an ID
+                'id': movie['id'],
                 'image_url': f"https://image.tmdb.org/t/p/w500{movie['poster_path']}",
                 'title': movie['title'],
                 'description': movie.get('overview', 'No description available'),
@@ -167,7 +172,7 @@ def recommend_videos(query, year=None):
         'key': YOUTUBE_API_KEY
     }
     if year:
-        query += f" {year}"  # Append year to the query for filtering
+        query += f" {year}"
         params['q'] = query
 
     try:
@@ -178,7 +183,7 @@ def recommend_videos(query, year=None):
             video_id = item['id']['videoId']
             snippet = item['snippet']
             results.append({
-                'id': video_id,  # Ensure we have an ID
+                'id': video_id,
                 'video_url': f"https://www.youtube.com/watch?v={video_id}",
                 'title': snippet['title'],
                 'description': snippet.get('description', 'No description available'),
@@ -193,30 +198,32 @@ def recommend_music(query, year=None):
     """ Fetch music tracks from Spotify based on query and optionally filter by year. """
     search_query = query
     if year:
-        search_query += f" {year}"  # Simulate year filtering by appending year to the query
+        search_query += f" {year}"
 
     try:
         results = spotify.search(q=search_query, type='track', limit=5)
         tracks = []
         for track in results['tracks']['items']:
             tracks.append({
-                'id': track['id'],  # Ensure we have an ID
+                'id': track['id'],
                 'track_url': track['external_urls']['spotify'],
                 'title': track['name'],
                 'artist': ', '.join(artist['name'] for artist in track['artists']),
                 'album': track['album']['name'],
-                'thumbnail': track['album']['images'][1]['url']  # Medium-sized album image
+                'thumbnail': track['album']['images'][1]['url'] if len(track['album']['images']) > 1 else ''
             })
         return tracks
     except Exception as e:
         print(f"Error fetching music: {e}")
         return []
 
-# Filter recommendations based on preferences
-def filter_recommendations(results, content_type, username=None):
+# -------------------------------------------------
+# FILTERING OUT DISLIKED ITEMS AND USER PREFERENCES
+# -------------------------------------------------
+
+def filter_out_disliked(results, content_type, username=None):
     """
-    Example filtering function (currently not explicitly called).
-    It demonstrates how to filter out disliked items and prioritize liked ones.
+    Filters out items the user has disliked, if the user is logged in.
     """
     if not username:
         return results  # If user not logged in, return everything
@@ -234,36 +241,235 @@ def filter_recommendations(results, content_type, username=None):
         'SELECT item_id FROM preferences WHERE user_id = ? AND content_type = ? AND preference = "dislike"',
         (user_id, content_type)
     ).fetchall()
-    liked_items = conn.execute(
-        'SELECT item_id FROM preferences WHERE user_id = ? AND content_type = ? AND preference = "like"',
-        (user_id, content_type)
-    ).fetchall()
     conn.close()
 
     disliked_ids = {row['item_id'] for row in disliked_items}
-    liked_ids = {row['item_id'] for row in liked_items}
 
     filtered_results = []
     for result in results:
         # Convert the ID in result to string for comparison
-        item_id = str(result['id'])
-
+        item_id = str(result.get('id', ''))
         # Skip disliked items
         if item_id in disliked_ids:
             continue
-
-        # Mark liked items with higher priority
-        if item_id in liked_ids:
-            result['priority'] = 1
         filtered_results.append(result)
 
-    # Sort by priority if present (higher first)
-    return sorted(filtered_results, key=lambda x: x.get('priority', 0), reverse=True)
+    return filtered_results
 
-# Routes
+# ------------------------------------------------------------
+# FETCHING LIKED ITEMS & GENERATING SIMILAR RECOMMENDATIONS
+# ------------------------------------------------------------
+
+def get_user_liked_items(username):
+    """
+    Returns a dictionary with lists of liked items for each content type:
+    {
+       'Movies': [...],
+       'Music': [...],
+       'Videos': [...],
+       'Images': [...]
+    }
+    """
+    if not username:
+        return {'Movies': [], 'Music': [], 'Videos': [], 'Images': []}
+
+    conn = get_db_connection()
+    user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
+    if not user:
+        conn.close()
+        return {'Movies': [], 'Music': [], 'Videos': [], 'Images': []}
+
+    user_id = user['id']
+
+    # For each content type, fetch liked item_ids
+    liked_items = conn.execute('''
+        SELECT item_id, content_type
+        FROM preferences
+        WHERE user_id = ?
+          AND preference = "like"
+    ''', (user_id,)).fetchall()
+    conn.close()
+
+    # We'll store the IDs grouped by content_type
+    liked_dict = {
+        'Movies': [],
+        'Music': [],
+        'Videos': [],
+        'Images': []
+    }
+    for row in liked_items:
+        ctype = row['content_type']
+        liked_dict[ctype].append(row['item_id'])
+
+    return liked_dict
+
+
+def fetch_movie_details(movie_id):
+    """ Helper to get movie details by ID from TMDB. """
+    url = f"https://api.themoviedb.org/3/movie/{movie_id}"
+    params = {'api_key': TMDB_API_KEY}
+    return fetch_data(url, params)
+
+def fetch_similar_movies(movie_id):
+    """ Returns a list of similar movies from TMDB for a given movie_id. """
+    url = f"https://api.themoviedb.org/3/movie/{movie_id}/similar"
+    params = {'api_key': TMDB_API_KEY, 'page': 1}
+    data = fetch_data(url, params)
+    results = []
+    for movie in data.get('results', []):
+        if movie.get('poster_path'):
+            results.append({
+                'id': movie['id'],
+                'image_url': f"https://image.tmdb.org/t/p/w500{movie['poster_path']}",
+                'title': movie['title'],
+                'description': movie.get('overview', 'No description available'),
+                'release_year': movie.get('release_date', 'Unknown')[:4]
+            })
+    return results
+
+def generate_similar_recommendations(username):
+    """
+    Generates a list of recommended items based on what the user has liked.
+    Currently only implements "similar movies" and naive approach for music.
+    """
+    if not username:
+        return []
+
+    # Step 1: Get user's liked items
+    liked_dict = get_user_liked_items(username)
+
+    recommended_results = []
+
+    # --- Similar Movies ---
+    for movie_id in liked_dict['Movies']:
+        # Get similar movies
+        similar_movies = fetch_similar_movies(movie_id)
+        # Filter out disliked
+        similar_movies = filter_out_disliked(similar_movies, 'Movies', username)
+        recommended_results.extend(similar_movies)
+
+    # --- Similar Music (Naive) ---
+    for track_id in liked_dict['Music']:
+        # We can fetch the track details from Spotify and re-run a search by track name
+        try:
+            track_info = spotify.track(track_id)
+            track_name = track_info['name']
+            # search using the track name
+            similar_tracks = recommend_music(track_name, year=None)
+            # Filter out disliked
+            similar_tracks = filter_out_disliked(similar_tracks, 'Music', username)
+            recommended_results.extend(similar_tracks)
+        except Exception as e:
+            print(f"Error fetching track info for ID {track_id}: {e}")
+
+    # You could expand logic for Videos or Images similarly
+
+    # Deduplicate recommended_results by ID
+    unique_recs = {}
+    for item in recommended_results:
+        unique_recs[item['id']] = item
+
+    # Convert back to a list
+    final_recs = list(unique_recs.values())
+
+    # Optionally limit how many results we show
+    return final_recs[:10]  # Show top 10 combined similar recs
+
+# -------------
+# ROUTES
+# -------------
+
 @app.route('/')
 def index():
-    return render_template('index.html')
+    # Show user-liked items in separate rows, plus recommended items
+    username = session.get('username', None)
+
+    if username:
+        liked_dict = get_user_liked_items(username)
+
+        # For each content type, fetch the actual item details
+        # so we can display them on the index page.
+        liked_movies = []
+        for movie_id in liked_dict['Movies']:
+            movie_data = fetch_movie_details(movie_id)
+            if movie_data and movie_data.get('id'):
+                liked_movies.append({
+                    'id': movie_data['id'],
+                    'title': movie_data['title'],
+                    'image_url': f"https://image.tmdb.org/t/p/w500{movie_data['poster_path']}" if movie_data.get('poster_path') else '',
+                    'description': movie_data.get('overview', 'No description available'),
+                    'release_year': movie_data.get('release_date', 'Unknown')[:4] if movie_data.get('release_date') else ''
+                })
+
+        # For Music, let's fetch track details
+        liked_music = []
+        for track_id in liked_dict['Music']:
+            try:
+                track_info = spotify.track(track_id)
+                liked_music.append({
+                    'id': track_info['id'],
+                    'title': track_info['name'],
+                    'artist': ', '.join(artist['name'] for artist in track_info['artists']),
+                    'album': track_info['album']['name'],
+                    'thumbnail': track_info['album']['images'][1]['url'] if len(track_info['album']['images']) > 1 else '',
+                    'track_url': track_info['external_urls']['spotify']
+                })
+            except:
+                pass
+
+        # For Videos (YouTube), we can only show the ID
+        liked_videos = []
+        for video_id in liked_dict['Videos']:
+            # We can do a naive approach: get snippet from YouTube
+            try:
+                detail_req = youtube.videos().list(part="snippet", id=video_id)
+                detail_resp = detail_req.execute()
+                if detail_resp.get('items'):
+                    vid = detail_resp['items'][0]
+                    snippet = vid['snippet']
+                    liked_videos.append({
+                        'id': video_id,
+                        'title': snippet['title'],
+                        'video_url': f"https://www.youtube.com/watch?v={video_id}",
+                        'thumbnail': snippet['thumbnails']['medium']['url']
+                    })
+            except Exception as e:
+                print(f"Error fetching YouTube video info: {e}")
+
+        # For Images (Unsplash), we’ll store just the ID in DB.
+        # We can fetch them again from the Unsplash API. But that
+        # requires a "GET /photos/{id}" endpoint call. So let's do that:
+        liked_images = []
+        for img_id in liked_dict['Images']:
+            # GET /photos/:id
+            img_url = f"https://api.unsplash.com/photos/{img_id}"
+            img_data = fetch_data(img_url, params={"client_id": UNSPLASH_ACCESS_KEY})
+            if img_data.get('id'):
+                liked_images.append({
+                    'id': img_data['id'],
+                    'title': img_data.get('description') or 'No title available',
+                    'image_url': img_data['urls']['regular'],
+                    'description': img_data.get('alt_description', 'No description available')
+                })
+
+        # Generate “recommended for you” based on liked items
+        recommended_for_you = generate_similar_recommendations(username)
+
+        return render_template('index.html',
+                               liked_movies=liked_movies,
+                               liked_music=liked_music,
+                               liked_videos=liked_videos,
+                               liked_images=liked_images,
+                               recommended_for_you=recommended_for_you)
+    else:
+        # If user not logged in, just show the default index
+        return render_template('index.html',
+                               liked_movies=[],
+                               liked_music=[],
+                               liked_videos=[],
+                               liked_images=[],
+                               recommended_for_you=[])
+
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -323,17 +529,26 @@ def recommend():
                 genre_search=(search_mode == 'genre'),
                 year=year
             )
+            # Filter out disliked
+            results = filter_out_disliked(results, 'Movies', session.get('username'))
+
         elif content_type == 'Videos':
             results = recommend_videos(query, year=year)
+            # Filter out disliked
+            results = filter_out_disliked(results, 'Videos', session.get('username'))
+
         elif content_type == 'Music':
             results = recommend_music(query, year=year)
+            # Filter out disliked
+            results = filter_out_disliked(results, 'Music', session.get('username'))
+
         elif content_type == 'Images':
             results = recommend_images(query)
-        else:
-            results = []  # Handle other content types if necessary
+            # Filter out disliked
+            results = filter_out_disliked(results, 'Images', session.get('username'))
 
-        # Optionally filter based on user preferences (uncomment to apply):
-        # results = filter_recommendations(results, content_type, session.get('username'))
+        else:
+            results = []
 
         return render_template('results.html', 
                                results=results, 
@@ -412,6 +627,4 @@ def dislike():
 
 # Run the app
 if __name__ == '__main__':
-    # Make sure to create 'templates' folder with index.html, register.html,
-    # login.html, and results.html for the render_template calls.
     app.run(debug=True)
