@@ -1,131 +1,109 @@
 <!-- templates/results.html -->
 {% extends 'base.html' %}
 
-{% block title %}Results - Recommendation App{% endblock %}
+{% block title %}Search Results{% endblock %}
 
 {% block content %}
-  <h2 class="mb-4">
-    Recommendations for "{{ query }}" 
-    {% if year %}(Year: {{ year }}){% endif %}
-  </h2>
-
-  {% if results and results|length > 0 %}
-    {% for item in results %}
-      <div class="results-item">
-        <!-- Image or thumbnail, if present -->
-        {% if item.image_url %}
-          <img
-            src="{{ item.image_url }}"
-            alt="{{ item.title or 'No title' }}"
-            class="thumbnail mb-3"
-          />
-        {% elif item.thumbnail %}
-          <img
-            src="{{ item.thumbnail }}"
-            alt="{{ item.title or 'No title' }}"
-            class="thumbnail mb-3"
-          />
-        {% endif %}
-
-        <!-- Title or Name -->
-        <h5>{{ item.title or '' }}</h5>
-        <!-- Extra info for movies -->
-        {% if item.release_year %}
-          <p><strong>Year:</strong> {{ item.release_year }}</p>
-        {% endif %}
-        <!-- Artist/Album for music -->
-        {% if item.artist %}
-          <p><strong>Artist:</strong> {{ item.artist }}</p>
-          <p><strong>Album:</strong> {{ item.album }}</p>
-        {% endif %}
-        <!-- Description -->
-        <p>
-          {{ item.description or "No description available" }}
-        </p>
-        <!-- Links -->
-        {% if item.track_url %}
-          <a href="{{ item.track_url }}" target="_blank">Play on Spotify</a><br/>
-        {% elif item.video_url %}
-          <a href="{{ item.video_url }}" target="_blank">Watch on YouTube</a><br/>
-        {% endif %}
-        
-        <!-- Like/Dislike buttons (if user logged in) -->
-        {% if session.username %}
-          <button
-            class="btn btn-sm btn-outline-success like-btn"
-            data-item-id="{{ item.id }}"
-            data-content-type="{{ content_type }}"
-          >
-            Like
-          </button>
-          <button
-            class="btn btn-sm btn-outline-danger dislike-btn"
-            data-item-id="{{ item.id }}"
-            data-content-type="{{ content_type }}"
-          >
-            Dislike
-          </button>
-        {% else %}
-          <p class="text-muted">Login to like or dislike items.</p>
-        {% endif %}
-      </div>
-    {% endfor %}
-  {% else %}
-    <p>No results found.</p>
-  {% endif %}
+  <div class="bg-white p-4 rounded">
+    <h2>Results for: "{{ query }}"</h2>
+    <p class="text-muted">Content Type: {{ content_type }}{% if year %}, Year: {{ year }}{% endif %}</p>
+  </div>
+  <div class="row mt-3">
+    {% if results and results|length > 0 %}
+      {% for item in results %}
+        <div class="col-12 col-sm-6 col-md-4 mb-3">
+          <div class="card">
+            {% if item.image_url %}
+            <img src="{{ item.image_url }}" class="card-img-top" alt="{{ item.title or 'No title' }}" />
+            {% elif item.thumbnail %}
+            <img src="{{ item.thumbnail }}" class="card-img-top" alt="{{ item.title or 'No title' }}" />
+            {% endif %}
+            <div class="card-body">
+              <h5 class="card-title">{{ item.title or 'No Title' }}</h5>
+              {% if item.release_year %}
+                <p class="text-muted">Year: {{ item.release_year }}</p>
+              {% endif %}
+              {% if item.artist %}
+                <p><strong>Artist:</strong> {{ item.artist }}</p>
+                <p><strong>Album:</strong> {{ item.album }}</p>
+              {% endif %}
+              <p class="card-text">
+                {{ item.description or 'No description available' }}
+              </p>
+              {% if item.track_url %}
+                <a href="{{ item.track_url }}" target="_blank" class="btn btn-sm btn-primary mb-2">Play on Spotify</a><br />
+              {% elif item.video_url %}
+                <a href="{{ item.video_url }}" target="_blank" class="btn btn-sm btn-danger mb-2">Watch on YouTube</a><br />
+              {% endif %}
+              {% if session.username %}
+                <button
+                  class="btn btn-sm btn-outline-success like-btn me-2"
+                  data-item-id="{{ item.id }}"
+                  data-content-type="{{ content_type }}"
+                >
+                  Like
+                </button>
+                <button
+                  class="btn btn-sm btn-outline-danger dislike-btn"
+                  data-item-id="{{ item.id }}"
+                  data-content-type="{{ content_type }}"
+                >
+                  Dislike
+                </button>
+              {% else %}
+                <p class="text-muted">Login to like or dislike items.</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <p class="mt-3">No results found.</p>
+    {% endif %}
+  </div>
 {% endblock %}
 
 {% block scripts %}
   {{ super() }}
   <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const likeButtons = document.querySelectorAll(".like-btn");
-      const dislikeButtons = document.querySelectorAll(".dislike-btn");
+    document.addEventListener('DOMContentLoaded', () => {
+      const likeBtns = document.querySelectorAll('.like-btn');
+      const dislikeBtns = document.querySelectorAll('.dislike-btn');
 
-      likeButtons.forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          const itemId = btn.getAttribute("data-item-id");
-          const contentType = btn.getAttribute("data-content-type");
+      likeBtns.forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const itemId = btn.getAttribute('data-item-id');
+          const contentType = btn.getAttribute('data-content-type');
           try {
-            const response = await fetch("/like", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ item_id: itemId, content_type: contentType }),
+            const res = await fetch('/like', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ item_id: itemId, content_type: contentType })
             });
-            const data = await response.json();
-            if (response.ok) {
-              alert(data.message);
-            } else {
-              alert(data.message || "Error liking item");
-            }
-          } catch (error) {
-            console.error("Error:", error);
+            const data = await res.json();
+            alert(data.message);
+          } catch (err) {
+            console.error(err);
+            alert("Error liking item.");
           }
         });
       });
 
-      dislikeButtons.forEach((btn) => {
-        btn.addEventListener("click", async () => {
-          const itemId = btn.getAttribute("data-item-id");
-          const contentType = btn.getAttribute("data-content-type");
+      dislikeBtns.forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const itemId = btn.getAttribute('data-item-id');
+          const contentType = btn.getAttribute('data-content-type');
           try {
-            const response = await fetch("/dislike", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ item_id: itemId, content_type: contentType }),
+            const res = await fetch('/dislike', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ item_id: itemId, content_type: contentType })
             });
-            const data = await response.json();
-            if (response.ok) {
-              alert(data.message);
-            } else {
-              alert(data.message || "Error disliking item");
-            }
-          } catch (error) {
-            console.error("Error:", error);
+            const data = await res.json();
+            alert(data.message);
+          } catch (err) {
+            console.error(err);
+            alert("Error disliking item.");
           }
         });
       });
