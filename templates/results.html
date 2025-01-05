@@ -4,6 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Search Results</title>
+    <style>
+        img {
+            max-width: 200px;
+            margin-bottom: 10px;
+        }
+        li {
+            margin-bottom: 20px;
+            list-style: none;
+        }
+    </style>
 </head>
 <body>
     <h1>Search Results for "{{ query }}"</h1>
@@ -20,11 +30,15 @@
             {% for result in results %}
                 <li>
                     {% if result.get('image_url') %}
-                        <img src="{{ result.image_url }}" alt="Image" style="max-width: 200px;">
+                        <img src="{{ result.image_url }}" alt="Image">
+                    {% elif result.get('thumbnail') %}
+                        <img src="{{ result.thumbnail }}" alt="Thumbnail">
                     {% endif %}
-                    {% if result.get('title') %}
-                        <strong>{{ result.title }}</strong><br>
+                    <strong>{{ result.title }}</strong>
+                    {% if result.get('release_year') %}
+                        ({{ result.release_year }})
                     {% endif %}
+                    <br>
                     {% if result.get('description') %}
                         <em>{{ result.description }}</em><br>
                     {% endif %}
@@ -35,9 +49,9 @@
                         Album: {{ result.album }}<br>
                     {% endif %}
                     {% if result.get('video_url') %}
-                        <a href="{{ result.video_url }}" target="_blank">Watch on YouTube</a>
+                        <a href="{{ result.video_url }}" target="_blank">Watch on YouTube</a><br>
                     {% elif result.get('track_url') %}
-                        <a href="{{ result.track_url }}" target="_blank">Listen on Spotify</a>
+                        <a href="{{ result.track_url }}" target="_blank">Listen on Spotify</a><br>
                     {% endif %}
                 </li>
             {% endfor %}

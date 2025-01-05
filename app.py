@@ -64,11 +64,10 @@ def get_genre_ids():
 
 def recommend_movies(query, person_search=False, genre_search=False, year=None):
     """Fetch movies from TMDB based on query, filtered by a person, genre, or year."""
-    # Base API parameters
     params = {'api_key': TMDB_API_KEY}
 
     if person_search:
-        # Search for a person and fetch their ID
+        # Search for a person and get their ID
         person_url = 'https://api.themoviedb.org/3/search/person'
         person_params = {'api_key': TMDB_API_KEY, 'query': query.strip()}
         person_data = fetch_data(person_url, person_params)
@@ -80,7 +79,7 @@ def recommend_movies(query, person_search=False, genre_search=False, year=None):
         url = 'https://api.themoviedb.org/3/discover/movie'
 
     elif genre_search:
-        # Search for a genre and fetch its ID
+        # Search for a genre and get its ID
         genres = get_genre_ids()
         genre_id = next((genre['id'] for genre in genres['genres'] if genre['name'].lower() == query.lower()), None)
         if genre_id:
@@ -96,12 +95,9 @@ def recommend_movies(query, person_search=False, genre_search=False, year=None):
 
     # Add year filter if provided
     if year:
-        if url == 'https://api.themoviedb.org/3/discover/movie':
-            params['primary_release_year'] = year.strip()
-        else:
-            params['year'] = year.strip()
+        params['primary_release_year'] = year.strip()
 
-    # Fetch data from the TMDB API
+    # Fetch data and process results
     data = fetch_data(url, params)
     results = []
     for movie in data.get('results', []):
@@ -113,6 +109,7 @@ def recommend_movies(query, person_search=False, genre_search=False, year=None):
                 'release_year': movie.get('release_date', 'Unknown')[:4]  # Extract year
             })
     return results
+
 
 
 def recommend_videos(query, year=None):
@@ -145,6 +142,7 @@ def recommend_videos(query, year=None):
     except Exception as e:
         print(f"Error fetching videos: {e}")
         return []
+
     
 def recommend_music(query, year=None):
     """ Fetch music tracks from Spotify based on query and optionally filter by year. """
@@ -160,12 +158,14 @@ def recommend_music(query, year=None):
                 'track_url': track['external_urls']['spotify'],
                 'title': track['name'],
                 'artist': ', '.join(artist['name'] for artist in track['artists']),
-                'album': track['album']['name']
+                'album': track['album']['name'],
+                'thumbnail': track['album']['images'][1]['url']  # Medium-sized album image
             })
         return tracks
     except Exception as e:
         print(f"Error fetching music: {e}")
         return []
+
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
