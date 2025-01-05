@@ -1,29 +1,29 @@
 <!-- templates/index.html -->
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
-{% block title %}AI Recommendation Home{% endblock %}
+{% block title %}Home{% endblock %}
 
 {% block content %}
+  <!-- Search Form Section -->
   <div class="bg-white p-4 rounded mb-4">
     <h1 class="mb-3">Find Your Next Favorite!</h1>
     <p class="text-muted">
-      Enter a search query below to get immediate recommendations for movies, music, videos, or images.
-      Like or dislike items to improve future recommendations powered by our simple AI system.
+      Search for movies, music, videos, or images. Like or dislike items to guide AI-based recommendations!
     </p>
     <form method="POST" action="/recommend">
-      <div class="row mb-2">
-        <div class="col-md-6 mb-2">
+      <div class="row mb-3">
+        <div class="col-md-6">
           <label for="query" class="form-label">Search Query</label>
           <input
             type="text"
             class="form-control"
             name="query"
             id="query"
-            placeholder="Try 'Inception', 'Pop music', 'Cute cats'..."
+            placeholder="Type something like 'Inception' or 'Pop music'"
             required
           />
         </div>
-        <div class="col-md-3 mb-2">
+        <div class="col-md-3">
           <label for="content_type" class="form-label">Content Type</label>
           <select class="form-select" name="content_type" id="content_type" required>
             <option value="Movies">Movies</option>
@@ -32,7 +32,7 @@
             <option value="Images">Images</option>
           </select>
         </div>
-        <div class="col-md-3 mb-2">
+        <div class="col-md-3">
           <label for="search_mode" class="form-label">Search Mode</label>
           <select class="form-select" name="search_mode" id="search_mode">
             <option value="standard">Standard</option>
@@ -56,162 +56,202 @@
   </div>
 
   {% if session.username %}
-    <!-- AI Recommendations -->
+    <!-- AI Recommendations Section -->
     <div class="bg-light p-3 rounded mb-4">
-      <h2 class="mb-3">AI Recommendations (Movies &amp; Music)</h2>
-      <div class="row">
-        <div class="col-md-6">
-          <h4>Movies</h4>
-          {% if ai_movie_recs and ai_movie_recs|length > 0 %}
-            <div class="row">
-              {% for m in ai_movie_recs %}
-                <div class="col-12 col-sm-6 col-md-6 mb-3">
-                  <div class="card">
-                    {% if m.image_url %}
-                    <img src="{{ m.image_url }}" class="card-img-top" alt="{{ m.title }}" />
+      <h2 class="mb-3">AI Recommendations</h2>
+
+      <!-- AI Recommended Movies -->
+      <h5>Movies</h5>
+      <div class="scroll-container mb-4">
+        {% if ai_movie_recs and ai_movie_recs|length > 0 %}
+          {% for movie in ai_movie_recs %}
+            <div class="scroll-item">
+              <div class="card">
+                {% if movie.image_url %}
+                  <img src="{{ movie.image_url }}" alt="{{ movie.title }}" />
+                {% endif %}
+                <div class="card-body">
+                  <p class="clamp-title">{{ movie.title }}</p>
+                  {% if movie.release_year %}
+                    <p class="clamp-meta">{{ movie.release_year }}</p>
+                  {% endif %}
+                  <p class="clamp-description">{{ movie.description }}</p>
+                  <!-- You could also add Like/Dislike for AI recs here if desired -->
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        {% else %}
+          <p>No movie recommendations yet. Like some movies to get AI suggestions!</p>
+        {% endif %}
+      </div>
+
+      <!-- AI Recommended Music -->
+      <h5>Music</h5>
+      <div class="scroll-container mb-4">
+        {% if ai_music_recs and ai_music_recs|length > 0 %}
+          {% for track in ai_music_recs %}
+            <div class="scroll-item">
+              <div class="card">
+                {% if track.thumbnail %}
+                  <img src="{{ track.thumbnail }}" alt="{{ track.title }}" />
+                {% endif %}
+                <div class="card-body">
+                  <p class="clamp-title">{{ track.title }}</p>
+                  <!-- Artist & album in small metadata lines -->
+                  <p class="clamp-meta">
+                    {{ track.artist }}
+                    {% if track.album %}
+                      <br /><em>{{ track.album }}</em>
                     {% endif %}
-                    <div class="card-body">
-                      <h5 class="card-title">{{ m.title }}</h5>
-                      <p class="card-text text-muted">{{ m.release_year }}</p>
-                      <p class="card-text">{{ m.description|truncate(100, True, '...') }}</p>
-                    </div>
+                  </p>
+                  <div class="clamp-description">
+                    <!-- If you had a longer description, it would go here.
+                         For music, you might not have a big description. -->
+                  </div>
+                  <!-- "Play" button at bottom -->
+                  <div class="buttons-container">
+                    <a
+                      href="{{ track.track_url }}"
+                      target="_blank"
+                      class="btn btn-success btn-sm"
+                    >
+                      Play
+                    </a>
                   </div>
                 </div>
-              {% endfor %}
+              </div>
             </div>
-          {% else %}
-            <p>No movie recommendations at this time.</p>
-          {% endif %}
-        </div>
-        <div class="col-md-6">
-          <h4>Music</h4>
-          {% if ai_music_recs and ai_music_recs|length > 0 %}
-            <div class="row">
-              {% for track in ai_music_recs %}
-                <div class="col-12 col-sm-6 col-md-6 mb-3">
-                  <div class="card">
-                    {% if track.thumbnail %}
-                    <img src="{{ track.thumbnail }}" class="card-img-top" alt="{{ track.title }}" />
-                    {% endif %}
-                    <div class="card-body">
-                      <h5 class="card-title">{{ track.title }}</h5>
-                      <p class="card-text">
-                        <strong>Artist:</strong> {{ track.artist }} <br>
-                        <small>{{ track.album }}</small>
-                      </p>
-                      <a href="{{ track.track_url }}" target="_blank" class="btn btn-sm btn-primary">Listen</a>
-                    </div>
-                  </div>
-                </div>
-              {% endfor %}
-            </div>
-          {% else %}
-            <p>No music recommendations at this time.</p>
-          {% endif %}
-        </div>
+          {% endfor %}
+        {% else %}
+          <p>No music recommendations yet. Like some tracks to get AI suggestions!</p>
+        {% endif %}
       </div>
     </div>
 
-    <!-- Liked Items -->
+    <!-- Liked Items Section -->
     <h2 class="mb-3">Your Liked Items</h2>
-    <!-- Movies -->
-    <h4>Liked Movies</h4>
-    <div class="row mb-4">
+
+    <!-- Liked Movies -->
+    <h5>Movies</h5>
+    <div class="scroll-container mb-4">
       {% if liked_movies and liked_movies|length > 0 %}
         {% for m in liked_movies %}
-          <div class="col-12 col-sm-6 col-md-4 mb-3">
+          <div class="scroll-item">
             <div class="card">
               {% if m.image_url %}
-              <img src="{{ m.image_url }}" class="card-img-top" alt="{{ m.title }}" />
+                <img src="{{ m.image_url }}" alt="{{ m.title }}" />
               {% endif %}
               <div class="card-body">
-                <h5 class="card-title">{{ m.title }}</h5>
-                <p class="card-text text-muted">{{ m.release_year }}</p>
-                <p class="card-text">{{ m.description|truncate(100, True, '...') }}</p>
+                <p class="clamp-title">{{ m.title }}</p>
+                {% if m.release_year %}
+                  <p class="clamp-meta">{{ m.release_year }}</p>
+                {% endif %}
+                <p class="clamp-description">{{ m.description }}</p>
+                <!-- If you want an "unlike" button, add it here. -->
               </div>
             </div>
           </div>
         {% endfor %}
       {% else %}
-        <p>No liked movies yet.</p>
+        <p class="ms-2">No liked movies yet.</p>
       {% endif %}
     </div>
 
-    <!-- Music -->
-    <h4>Liked Music</h4>
-    <div class="row mb-4">
+    <!-- Liked Music -->
+    <h5>Music</h5>
+    <div class="scroll-container mb-4">
       {% if liked_music and liked_music|length > 0 %}
         {% for track in liked_music %}
-          <div class="col-12 col-sm-6 col-md-4 mb-3">
+          <div class="scroll-item">
             <div class="card">
               {% if track.thumbnail %}
-              <img src="{{ track.thumbnail }}" class="card-img-top" alt="{{ track.title }}" />
+                <img src="{{ track.thumbnail }}" alt="{{ track.title }}" />
               {% endif %}
               <div class="card-body">
-                <h5 class="card-title">{{ track.title }}</h5>
-                <p class="card-text">
-                  <strong>Artist:</strong> {{ track.artist }}<br>
-                  <strong>Album:</strong> {{ track.album }}
+                <p class="clamp-title">{{ track.title }}</p>
+                <p class="clamp-meta">
+                  {{ track.artist }}
+                  {% if track.album %}
+                    <br /><em>{{ track.album }}</em>
+                  {% endif %}
                 </p>
-                <a href="{{ track.track_url }}" target="_blank" class="btn btn-sm btn-success">Play on Spotify</a>
+                <!-- "Play" button (optional) -->
+                <div class="buttons-container">
+                  <a
+                    href="{{ track.track_url }}"
+                    target="_blank"
+                    class="btn btn-success btn-sm"
+                  >
+                    Play
+                  </a>
+                  <!-- Could do "Unlike" here if you want. -->
+                </div>
               </div>
             </div>
           </div>
         {% endfor %}
       {% else %}
-        <p>No liked music yet.</p>
+        <p class="ms-2">No liked music yet.</p>
       {% endif %}
     </div>
 
-    <!-- Videos -->
-    <h4>Liked Videos</h4>
-    <div class="row mb-4">
+    <!-- Liked Videos -->
+    <h5>Videos</h5>
+    <div class="scroll-container mb-4">
       {% if liked_videos and liked_videos|length > 0 %}
         {% for v in liked_videos %}
-          <div class="col-12 col-sm-6 col-md-4 mb-3">
+          <div class="scroll-item">
             <div class="card">
               {% if v.thumbnail %}
-              <img src="{{ v.thumbnail }}" class="card-img-top" alt="{{ v.title }}" />
+                <img src="{{ v.thumbnail }}" alt="{{ v.title }}" />
               {% endif %}
               <div class="card-body">
-                <h5 class="card-title">{{ v.title }}</h5>
-                <p class="card-text">{{ v.description|truncate(100, True, '...') }}</p>
-                <a href="{{ v.video_url }}" target="_blank" class="btn btn-sm btn-danger">Watch on YouTube</a>
+                <p class="clamp-title">{{ v.title }}</p>
+                <p class="clamp-description">{{ v.description }}</p>
+                <div class="buttons-container">
+                  <a href="{{ v.video_url }}" target="_blank" class="btn btn-danger btn-sm">
+                    Watch
+                  </a>
+                </div>
               </div>
             </div>
           </div>
         {% endfor %}
       {% else %}
-        <p>No liked videos yet.</p>
+        <p class="ms-2">No liked videos yet.</p>
       {% endif %}
     </div>
 
-    <!-- Images -->
-    <h4>Liked Images</h4>
-    <div class="row mb-4">
+    <!-- Liked Images -->
+    <h5>Images</h5>
+    <div class="scroll-container mb-4">
       {% if liked_images and liked_images|length > 0 %}
         {% for i in liked_images %}
-          <div class="col-12 col-sm-6 col-md-4 mb-3">
+          <div class="scroll-item">
             <div class="card">
               {% if i.image_url %}
-              <img src="{{ i.image_url }}" class="card-img-top" alt="{{ i.title }}" />
+                <img src="{{ i.image_url }}" alt="{{ i.title }}" />
               {% endif %}
               <div class="card-body">
-                <h5 class="card-title">{{ i.title }}</h5>
-                <p class="card-text">{{ i.description }}</p>
+                <p class="clamp-title">{{ i.title }}</p>
+                <p class="clamp-description">{{ i.description }}</p>
+                <!-- If you want an "unlike" button, add it here. -->
               </div>
             </div>
           </div>
         {% endfor %}
       {% else %}
-        <p>No liked images yet.</p>
+        <p class="ms-2">No liked images yet.</p>
       {% endif %}
     </div>
   {% else %}
-    <p class="text-white">
-      <strong>Please <a href="/login" class="text-decoration-underline">Login</a> 
-      or <a href="/register" class="text-decoration-underline">Register</a> 
-      to like/dislike and get AI recommendations!</strong>
-    </p>
+    <!-- If user is not logged in -->
+    <div class="bg-white p-4 rounded">
+      <p class="lead">
+        Please <a href="/login">Login</a> or <a href="/register">Register</a> 
+        to like or dislike items and see AI-based recommendations!
+      </p>
+    </div>
   {% endif %}
 {% endblock %}
